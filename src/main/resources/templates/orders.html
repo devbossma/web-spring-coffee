@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>My orders</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <h1>My orders</h1>
+    <p class="tagline">You're identified as <span class="order-code" th:text="${customerId}">CUST-...</span>, no name needed.</p>
+
+    <table class="board">
+        <tr>
+            <th>Order</th>
+            <th>Coffee</th>
+            <th>Extras</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        <tr th:each="order : ${orders}">
+            <td><span class="order-code" th:text="${order.orderCode}">ORD-...</span></td>
+            <td th:text="${order.coffeeType.displayName()}">Espresso</td>
+            <td>
+                <span th:each="extra, iter : ${order.extras}">
+                    <span th:text="${extra.displayName()}">Milk</span><span th:if="${!iter.last}">, </span>
+                </span>
+                <span th:if="${order.extras.isEmpty()}">&ndash;</span>
+            </td>
+            <td th:text="'$' + ${order.price}">$2.50</td>
+            <td><span class="status" th:classappend="'status-' + ${order.status}" th:text="${order.status}">PLACED</span></td>
+            <td>
+                <a th:if="${order.status.name() == 'PLACED' or order.status.name() == 'PAID'}"
+                   class="btn btn-small" th:href="@{/chat/{id}(id=${order.id})}">Chat</a>
+                <form th:unless="${order.status.name() == 'PLACED' or order.status.name() == 'PAID'}"
+                      th:action="@{/orders/{id}/reorder(id=${order.id})}" method="post" style="display:inline">
+                    <button type="submit" class="btn btn-small btn-secondary">Order again</button>
+                </form>
+            </td>
+        </tr>
+    </table>
+
+    <div class="nav-links">
+        <a th:href="@{/}">Back to the menu</a>
+    </div>
+</div>
+</body>
+</html>

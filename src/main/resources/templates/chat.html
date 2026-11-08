@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat about your order</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <h1>Order <span class="order-code" th:text="${order.orderCode}">ORD-...</span></h1>
+    <p class="tagline">
+        <span th:text="${order.coffeeType.displayName()}">Espresso</span>
+        &middot; <span class="status" th:classappend="'status-' + ${order.status}" th:text="${order.status}">PLACED</span>
+    </p>
+
+    <div class="chat-card">
+        <h3>Chat with the barista</h3>
+        <div class="transcript" id="transcript">
+            <div class="bubble" th:each="message : ${history}" th:classappend="${message.sender}">
+                <span class="who" th:text="${message.sender}">CUSTOMER</span>
+                <span th:text="${message.text}">Hello</span>
+            </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+            <input type="text" id="chat-text" placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="btn">Send</button>
+        </form>
+    </div>
+
+    <div class="nav-links">
+        <a th:href="@{/orders}">Back to my orders</a>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const ORDER_ID = /*[[${order.id}]]*/ 0;
+    const SENDER = /*[[${sender}]]*/ 'CUSTOMER';
+</script>
+<script th:src="@{/js/chat.js}"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Barista console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <h1>Barista console
+        <span class="metric">Fulfilled today: <span th:text="${fulfilledCount}">0</span></span>
+    </h1>
+
+    <div class="console">
+        <div class="session-list">
+            <a th:each="order : ${orders}" th:href="@{/barista/console(orderId=${order.id})}"
+               th:classappend="${selectedOrder != null and selectedOrder.id == order.id} ? 'active' : ''">
+                <span class="order-code" th:text="${order.orderCode}">ORD-...</span><br>
+                <span th:text="${order.coffeeType.displayName()}">Espresso</span>
+                &middot;
+                <span th:text="${order.status}">PLACED</span>
+            </a>
+            <p class="tagline" th:if="${#lists.isEmpty(orders)}">No open orders right now.</p>
+        </div>
+
+        <div class="console-chat">
+            <div th:if="${selectedOrder != null}">
+                <div class="chat-card" style="margin-top:0">
+                    <h3>
+                        <span th:text="${selectedOrder.orderCode}">ORD-...</span>
+                        &middot; <span th:text="${selectedOrder.coffeeType.displayName()}">Espresso</span>
+                        &middot; $<span th:text="${selectedOrder.price}">2.50</span>
+                    </h3>
+
+                    <ol class="brew-steps">
+                        <li th:each="step : ${brewSteps}" th:text="${step}">Boil water</li>
+                    </ol>
+
+                    <form th:if="${selectedOrder.status.name() == 'PLACED'}"
+                          th:action="@{/barista/orders/{id}/pay(id=${selectedOrder.id})}" method="post" style="display:inline">
+                        <button type="submit" class="btn btn-small">Mark paid</button>
+                    </form>
+                    <form th:if="${selectedOrder.status.name() == 'PAID'}"
+                          th:action="@{/barista/orders/{id}/fulfill(id=${selectedOrder.id})}" method="post" style="display:inline">
+                        <button type="submit" class="btn btn-small btn-secondary">Mark fulfilled</button>
+                    </form>
+                    <form th:action="@{/barista/orders/{id}/cancel(id=${selectedOrder.id})}" method="post" style="display:inline">
+                        <button type="submit" class="btn btn-small" style="background:var(--bad)">Cancel</button>
+                    </form>
+
+                    <div class="transcript" id="transcript" style="margin-top:16px">
+                        <div class="bubble" th:each="message : ${history}" th:classappend="${message.sender}">
+                            <span class="who" th:text="${message.sender}">CUSTOMER</span>
+                            <span th:text="${message.text}">Hello</span>
+                        </div>
+                    </div>
+                    <form class="chat-form" id="chat-form">
+                        <input type="text" id="chat-text" placeholder="Reply..." autocomplete="off">
+                        <button type="submit" class="btn">Send</button>
+                    </form>
+                </div>
+            </div>
+            <p class="tagline" th:if="${selectedOrder == null}">Pick an order on the left to open its chat.</p>
+        </div>
+    </div>
+
+    <div class="nav-links">
+        <a th:href="@{/barista/logout}">Log out</a>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const ORDER_ID = /*[[${selectedOrder != null ? selectedOrder.id : 0}]]*/ 0;
+    const SENDER = 'BARISTA';
+</script>
+<script th:src="@{/js/chat.js}"></script>
+</body>
+</html>

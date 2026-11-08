@@ -36,13 +36,13 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
-        <!-- Source: https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
-        <!-- Serializes ChatSocketPayload to/from JSON over the raw WebSocket. Spring Boot 4's
-             starter-web no longer pulls this in transitively, so it is explicit here; version
-             managed by the parent's dependency-management. -->
+        <!-- Serializes ChatSocketPayload to/from JSON over the raw WebSocket. Spring Boot 4 split
+             Jackson's autoconfiguration (the ObjectMapper bean) out of spring-boot-starter-web into
+             its own starter, same pattern as the webmvc-test/data-jpa-test splits; a bare
+             jackson-databind dependency gives the class but not the autoconfigured bean. -->
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

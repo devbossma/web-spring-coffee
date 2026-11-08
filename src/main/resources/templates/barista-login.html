@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Barista login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page login-page">
+    <form class="login-card" th:action="@{/barista/login}" method="post">
+        <h1>Barista login</h1>
+
+        <p class="error" th:if="${error}" th:text="${error}">Wrong username or password</p>
+
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password">
+        <button type="submit" class="btn">Log in</button>
+    </form>
+</div>
+</body>
+</html>
