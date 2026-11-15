@@ -120,8 +120,46 @@ mvn compile org.codehaus.mojo:exec-maven-plugin:3.5.1:java \
     -Dexec.args="your-chosen-password" -Dexec.classpathScope=compile
 ```
 
-Copy the line it prints (a `$2a$...` bcrypt hash) and set it as `BARISTA_PASSWORD_HASH` before
-starting the app:
+On Windows `cmd.exe`, use `^` instead of `\` to continue a line, or just put it all on one line.
+This is the real output from running that command, with your own chosen password in place of
+`your-chosen-password`:
+
+```
+C:\Users\pc\IdeaProjects\web-spring-coffee>mvn compile org.codehaus.mojo:exec-maven-plugin:3.5.1:java ^
+More?     -Dexec.mainClass=dev.saberlabs.springcoffee.tools.HashGenerator ^
+More?     -Dexec.args="your-chosen-password" -Dexec.classpathScope=compile
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< dev.saberlabs:web-spring-coffee >-------------------
+[INFO] Building WebSpringCoffee 0.1.0-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ web-spring-coffee ---
+[INFO] argLine set to -javaagent:C:\\Users\\pc\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.15\\org.jacoco.agent-0.8.15-runtime.jar=destfile=C:\\Users\\pc\\IdeaProjects\\web-spring-coffee\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ web-spring-coffee ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 7 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ web-spring-coffee ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- exec:3.5.1:java (default-cli) @ web-spring-coffee ---
+$2a$10$lGBfbqBV.tBQCweQML5S0e/A4Fw3iV/fV01Nfhjiub2y4hsZh3fE2
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.016 s
+[INFO] Finished at: 2026-11-15T02:07:15+01:00
+[INFO] ------------------------------------------------------------------------
+```
+
+The `$2a$10$lGBfbqBV...` line in the middle of all that Maven log output is the hash. Everything
+else is normal build noise from `exec-maven-plugin` running through the same build as the rest
+of the project; it is not an error.
+
+Copy that hash line and set it as `BARISTA_PASSWORD_HASH` before starting the app:
 
 ```bash
 export BARISTA_PASSWORD_HASH='<the hash HashGenerator printed>'
