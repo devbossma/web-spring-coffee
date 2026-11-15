@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.EnumSet;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -26,6 +27,8 @@ class BaristaControllerTest extends AbstractIntegrationTest {
     private MockMvc mockMvc;
     @Autowired
     private CoffeeShopFacade coffeeShopFacade;
+
+    // ---- access control ----
 
     @Test
     void rootRedirectsToLoginWhenNotAuthenticated() throws Exception {
@@ -42,7 +45,21 @@ class BaristaControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void wrongCredentialsReshowTheFormWithAnError() throws Exception {
+    void orderActionsRedirectToLoginWhenNotAuthenticated() throws Exception {
+        CoffeeOrder order = coffeeShopFacade.placeOrder("CUST-1", CoffeeType.AMERICANO, EnumSet.noneOf(Extra.class));
+
+        for (String action : new String[]{"pay", "fulfill", "cancel"}) {
+            mockMvc.perform(post("/barista/orders/{id}/" + action, order.getId()))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/barista/login"));
+        }
+        assertStatus(order.getId(), OrderStatus.PLACED);
+    }
+
+    // ---- login / logout ----
+
+    @Test
+    void wrongPasswordReshowsTheFormWithAnError() throws Exception {
         mockMvc.perform(post("/barista/login").param("username", "barista").param("password", "nope"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("barista-login"))
@@ -50,13 +67,16 @@ class BaristaControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void correctCredentialsLogInAndUnlockTheConsole() throws Exception {
-        MockHttpSession session = new MockHttpSession();
+    void unknownUsernameReshowsTheFormWithAnError() throws Exception {
+        mockMvc.perform(post("/barista/login").param("username", "nobody").param("password", BARISTA_TEST_PASSWORD))
+                .andExpect(status().isOk())
+                .andExpect(view().name("barista-login"))
+                .andExpect(model().attributeExists("error"));
+    }
 
-        mockMvc.perform(post("/barista/login").session(session)
-                        .param("username", "barista").param("password", "coffee123"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/barista/console"));
+    @Test
+    void correctCredentialsLogInAndUnlockTheConsole() throws Exception {
+        MockHttpSession session = loggedInSession();
 
         mockMvc.perform(get("/barista").session(session))
                 .andExpect(redirectedUrl("/barista/console"));
@@ -68,9 +88,7 @@ class BaristaControllerTest extends AbstractIntegrationTest {
 
     @Test
     void logoutClearsTheSessionFlag() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        mockMvc.perform(post("/barista/login").session(session)
-                .param("username", "barista").param("password", "coffee123"));
+        MockHttpSession session = loggedInSession();
 
         mockMvc.perform(get("/barista/logout").session(session))
                 .andExpect(redirectedUrl("/barista/login"));
@@ -79,12 +97,11 @@ class BaristaControllerTest extends AbstractIntegrationTest {
                 .andExpect(redirectedUrl("/barista/login"));
     }
 
-    @Test
-    void payFulfillAndCancelActionsDriveTheOrderThroughTheFacade() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        mockMvc.perform(post("/barista/login").session(session)
-                .param("username", "barista").param("password", "coffee123"));
+    // ---- order actions ----
 
+    @Test
+    void payAndFulfillActionsDriveTheOrderThroughTheFacade() throws Exception {
+        MockHttpSession session = loggedInSession();
         CoffeeOrder order = coffeeShopFacade.placeOrder("CUST-1", CoffeeType.AMERICANO, EnumSet.noneOf(Extra.class));
 
         mockMvc.perform(post("/barista/orders/{id}/pay", order.getId()).session(session))
@@ -98,10 +115,7 @@ class BaristaControllerTest extends AbstractIntegrationTest {
 
     @Test
     void cancelActionMarksTheOrderCancelled() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        mockMvc.perform(post("/barista/login").session(session)
-                .param("username", "barista").param("password", "coffee123"));
-
+        MockHttpSession session = loggedInSession();
         CoffeeOrder order = coffeeShopFacade.placeOrder("CUST-1", CoffeeType.MOCHA, EnumSet.noneOf(Extra.class));
 
         mockMvc.perform(post("/barista/orders/{id}/cancel", order.getId()).session(session))
@@ -109,8 +123,19 @@ class BaristaControllerTest extends AbstractIntegrationTest {
         assertStatus(order.getId(), OrderStatus.CANCELLED);
     }
 
+    // ---- helpers ----
+
+    private MockHttpSession loggedInSession() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        mockMvc.perform(post("/barista/login").session(session)
+                        .param("username", "barista").param("password", BARISTA_TEST_PASSWORD))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/barista/console"));
+        return session;
+    }
+
     private void assertStatus(Long orderId, OrderStatus expected) {
-        org.assertj.core.api.Assertions.assertThat(coffeeOrderRepository.findById(orderId).orElseThrow().getStatus())
+        assertThat(coffeeOrderRepository.findById(orderId).orElseThrow().getStatus())
                 .isEqualTo(expected);
     }
 }

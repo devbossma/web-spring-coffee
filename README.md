@@ -33,9 +33,10 @@ earlier submissions was fine; reusing the code itself was not the point of the e
 |---|---|
 | `controller` | `CoffeeShopController` (menu, place order, order history), `ChatPageController` (the chat page for one order), `BaristaController` (login, console, pay/fulfill/cancel) |
 | `service`, `repository`, `model` | the application layer and the three JPA entities (`CoffeeOrder`, `Coffee`, `ChatMessage`) behind them |
-| `config` | `WebMvcConfig` wiring two `HandlerInterceptor`s: one that hands every browser session a customer id on first visit, one that gates the barista console behind the login form |
+| `config` | `WebMvcConfig` wiring two `HandlerInterceptor`s: one that hands every browser session a customer id on first visit, one that gates the barista console behind the login form; `PasswordConfig` exposes the bcrypt `PasswordEncoder` bean |
 | `websocket` | `WebSocketConfig` registering `ChatWebSocketHandler` at `/ws/chat`, routed per order id from the connection's own query string, with no message broker in between |
 | `factory`, `decorator`, `strategy`, `singleton`, `observer`, `command`, `adapter`, `facade`, `prototype`, `template` | the ten design patterns, each one a real, working piece of the running app rather than a textbook example sitting off to the side |
+| `tools` | `HashGenerator`, a standalone CLI for generating the bcrypt hash that `BARISTA_PASSWORD_HASH` needs; not part of the running app, so it is excluded from the coverage gate the same way the application's own entry point is |
 
 ### How an order flows through the app
 
@@ -70,10 +71,14 @@ earlier submissions was fine; reusing the code itself was not the point of the e
   in; the only thing distinguishing one customer from another is which browser session they are
   using.
 - **Barista login is intentionally minimal.** The assignment marks Spring Security as optional,
-  and a single shared `barista` / `coffee123` credential pair checked by `BaristaAuthService`,
-  gated by a plain `HandlerInterceptor`, covers exactly what this app needs: keeping the console
-  away from customers, nothing more. Adding Spring Security on top would be solving a problem
-  this assignment does not actually have.
+  so instead of pulling in the full framework this app uses only `spring-security-crypto` for
+  bcrypt hashing. A single shared `barista` account, checked by `BaristaAuthService` against a
+  bcrypt hash and gated by a plain `HandlerInterceptor`, covers exactly what this app needs:
+  keeping the console away from customers, nothing more. The real password is never hardcoded or
+  committed; see [Setting the barista password](#setting-the-barista-password) below for how to
+  generate and set it. `BaristaAuthService` also runs a dummy bcrypt comparison for unknown
+  usernames, so an unknown username and a wrong password both take the same amount of time,
+  closing the timing gap that would otherwise let someone enumerate valid usernames.
 - **The WebSocket room is keyed by order id, not by any user id.** This app assumes one shared
   barista console watching every order at once, so a message sent into an order's room reaches
   every open session for that order, customer and barista alike, with no separate routing per
@@ -82,8 +87,8 @@ earlier submissions was fine; reusing the code itself was not the point of the e
   - There is no idempotency key on placing an order, so retrying the exact same form submission
     can place a second order.
   - Cancelling an order that has already been paid for does not trigger a refund.
-  - The barista credential pair is shared and hardcoded; there is no per-barista account or
-    audit trail of which barista acted on an order.
+  - The barista account is shared, one username for every barista; there is no per-barista
+    account or audit trail of which barista acted on an order.
   - A WebSocket session that reconnects after a drop re-fetches nothing on its own; the chat
     page's own history load on page open is what fills it back in.
 
@@ -101,6 +106,32 @@ mvn clean install
 
 ## Usage
 
+### Setting the barista password
+
+The barista account's password is never hardcoded or committed. `BaristaAuthService` reads a
+bcrypt hash from the `BARISTA_PASSWORD_HASH` environment variable
+(`application.properties` wires it in as `barista.password-hash=${BARISTA_PASSWORD_HASH}`), so
+the app will not start until that variable is set. `HashGenerator`, a small CLI in the `tools`
+package, generates the hash for you:
+
+```bash
+mvn compile org.codehaus.mojo:exec-maven-plugin:3.5.1:java \
+    -Dexec.mainClass=dev.saberlabs.springcoffee.tools.HashGenerator \
+    -Dexec.args="your-chosen-password" -Dexec.classpathScope=compile
+```
+
+Copy the line it prints (a `$2a$...` bcrypt hash) and set it as `BARISTA_PASSWORD_HASH` before
+starting the app:
+
+```bash
+export BARISTA_PASSWORD_HASH='<the hash HashGenerator printed>'
+```
+
+On Windows PowerShell: `$env:BARISTA_PASSWORD_HASH = '<the hash>'`. In IntelliJ, set it as an
+environment variable on the run configuration instead. The variable only needs to be set once
+per shell or run configuration; the tests never depend on it; `AbstractIntegrationTest` supplies
+its own fixed hash directly to the Spring context instead.
+
 ### Running the app
 
 ```bash
@@ -115,7 +146,8 @@ items the first time it runs against an empty `coffees` table.
 
 Once it is up, open **http://localhost:8080** in a browser to order coffee as a customer, and
 **http://localhost:8080/barista** in another tab (or another browser) to log in as the barista
-with `barista` / `coffee123` and watch orders, and chat messages, arrive in real time.
+with username `barista` and whichever password you hashed into `BARISTA_PASSWORD_HASH` above,
+and watch orders, and chat messages, arrive in real time.
 
 ### Trying it out end to end
 
@@ -140,7 +172,9 @@ This needs Docker running, because the test suite starts its own disposable MySQ
 through Testcontainers rather than using any in-memory stand-in. The build does two things at
 once: it runs the entire test suite, and it enforces an 80 percent minimum line coverage floor
 for every package, so a shrinking test suite fails the build loudly instead of slipping through
-quietly. The suite currently stands at 80 tests, all of them passing.
+quietly. The suite currently stands at 90 tests, all of them passing. `BARISTA_PASSWORD_HASH`
+does not need to be set to run this: `AbstractIntegrationTest` supplies its own hash directly to
+the Spring context, so the test suite never depends on anything in your shell environment.
 
 Use `verify`, not `test`, when you actually want to know whether the build is sound. `mvn test`
 only runs the suite and writes a coverage report to disk; it does not fail the build if coverage
