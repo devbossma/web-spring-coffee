@@ -29,6 +29,20 @@ class CoffeeShopControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void placingAnOrderWithNoExtrasBindsAnEmptyExtrasList() throws Exception {
+        MvcResult homeResult = mockMvc.perform(get("/")).andReturn();
+        HttpSession session = homeResult.getRequest().getSession(false);
+
+        MvcResult orderResult = mockMvc.perform(post("/order")
+                        .session((org.springframework.mock.web.MockHttpSession) session)
+                        .param("coffeeType", "AMERICANO"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        assertThat(orderResult.getResponse().getRedirectedUrl()).startsWith("/chat/");
+    }
+
+    @Test
     void placingThenViewingAnOrderWorksEndToEnd() throws Exception {
         MvcResult homeResult = mockMvc.perform(get("/")).andReturn();
         HttpSession session = homeResult.getRequest().getSession(false);

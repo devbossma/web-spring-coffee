@@ -3,7 +3,6 @@ package dev.saberlabs.springcoffee.controller;
 import dev.saberlabs.springcoffee.config.CustomerIdentificationInterceptor;
 import dev.saberlabs.springcoffee.facade.CoffeeShopFacade;
 import dev.saberlabs.springcoffee.model.CoffeeOrder;
-import dev.saberlabs.springcoffee.model.CoffeeType;
 import dev.saberlabs.springcoffee.model.Extra;
 import dev.saberlabs.springcoffee.service.MenuService;
 import dev.saberlabs.springcoffee.service.OrderQueryService;
@@ -11,13 +10,13 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.EnumSet;
 
 @Controller
 public class CoffeeShopController {
@@ -41,12 +40,11 @@ public class CoffeeShopController {
     }
 
     @PostMapping("/order")
-    public String placeOrder(@RequestParam CoffeeType coffeeType,
-                              @RequestParam(required = false) List<Extra> extras,
-                              HttpSession session) {
+    public String placeOrder(@ModelAttribute OrderForm orderForm, HttpSession session) {
         String customerId = (String) session.getAttribute(CustomerIdentificationInterceptor.SESSION_ATTRIBUTE);
+        List<Extra> extras = orderForm.extras();
         Set<Extra> extraSet = extras == null ? EnumSet.noneOf(Extra.class) : EnumSet.copyOf(extras);
-        CoffeeOrder order = coffeeShopFacade.placeOrder(customerId, coffeeType, extraSet);
+        CoffeeOrder order = coffeeShopFacade.placeOrder(customerId, orderForm.coffeeType(), extraSet);
         return "redirect:/chat/" + order.getId();
     }
 
