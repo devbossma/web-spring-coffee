@@ -7,8 +7,10 @@ import dev.saberlabs.springcoffee.model.Extra;
 import dev.saberlabs.springcoffee.service.MenuService;
 import dev.saberlabs.springcoffee.service.OrderQueryService;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,18 +36,28 @@ public class CoffeeShopController {
 
     @GetMapping("/")
     public String home(Model model) {
-        model.addAttribute("coffees", menuService.menu());
-        model.addAttribute("extras", Extra.values());
+        addMenuAttributes(model);
         return "index";
     }
 
     @PostMapping("/order")
-    public String placeOrder(@ModelAttribute OrderForm orderForm, HttpSession session) {
+    public String placeOrder(@Valid @ModelAttribute OrderForm orderForm, BindingResult bindingResult,
+                              HttpSession session, Model model) {
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("error", bindingResult.getFieldError().getDefaultMessage());
+            addMenuAttributes(model);
+            return "index";
+        }
         String customerId = (String) session.getAttribute(CustomerIdentificationInterceptor.SESSION_ATTRIBUTE);
         List<Extra> extras = orderForm.extras();
         Set<Extra> extraSet = extras == null ? EnumSet.noneOf(Extra.class) : EnumSet.copyOf(extras);
         CoffeeOrder order = coffeeShopFacade.placeOrder(customerId, orderForm.coffeeType(), extraSet);
         return "redirect:/chat/" + order.getId();
+    }
+
+    private void addMenuAttributes(Model model) {
+        model.addAttribute("coffees", menuService.menu());
+        model.addAttribute("extras", Extra.values());
     }
 
     @GetMapping("/orders")

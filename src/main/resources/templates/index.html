@@ -12,6 +12,8 @@
     <h1>&#9749; The Corner Coffee Shop</h1>
     <p class="tagline">Pick your coffee and any extras, we'll have it ready in a minute.</p>
 
+    <p class="error" th:if="${error}" th:text="${error}">Pick a coffee before placing your order</p>
+
     <form th:action="@{/order}" method="post">
         <div class="menu-grid">
             <label class="coffee-card" th:each="coffee : ${coffees}" th:attr="data-type=${coffee.name}">

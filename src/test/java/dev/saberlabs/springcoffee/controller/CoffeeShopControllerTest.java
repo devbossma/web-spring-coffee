@@ -43,6 +43,18 @@ class CoffeeShopControllerTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void placingAnOrderWithNoCoffeeTypeReshowsTheMenuWithAnError() throws Exception {
+        MvcResult homeResult = mockMvc.perform(get("/")).andReturn();
+        HttpSession session = homeResult.getRequest().getSession(false);
+
+        mockMvc.perform(post("/order").session((org.springframework.mock.web.MockHttpSession) session))
+                .andExpect(status().isOk())
+                .andExpect(view().name("index"))
+                .andExpect(model().attributeExists("error"))
+                .andExpect(model().attributeExists("coffees"));
+    }
+
+    @Test
     void placingThenViewingAnOrderWorksEndToEnd() throws Exception {
         MvcResult homeResult = mockMvc.perform(get("/")).andReturn();
         HttpSession session = homeResult.getRequest().getSession(false);
