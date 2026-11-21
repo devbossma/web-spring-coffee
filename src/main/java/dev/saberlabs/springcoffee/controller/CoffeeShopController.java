@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Controller
@@ -44,7 +45,7 @@ public class CoffeeShopController {
     public String placeOrder(@Valid @ModelAttribute OrderForm orderForm, BindingResult bindingResult,
                               HttpSession session, Model model) {
         if (bindingResult.hasErrors()) {
-            model.addAttribute("error", bindingResult.getFieldError().getDefaultMessage());
+            model.addAttribute("error", Objects.requireNonNull(bindingResult.getFieldError()).getDefaultMessage());
             addMenuAttributes(model);
             return "index";
         }
