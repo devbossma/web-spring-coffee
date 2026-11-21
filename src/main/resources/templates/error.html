@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Something went wrong</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="page">
+    <h1>&#9888; Something went wrong</h1>
+    <p class="error" th:text="${message} ?: 'That action could not be completed.'">
+        That action could not be completed.
+    </p>
+
+    <div class="nav-links">
+        <a th:href="@{/}">Back to the menu</a>
+        <a th:href="@{/orders}">View my orders</a>
+        <a th:href="@{/barista/console}">Barista console</a>
+    </div>
+</div>
+</body>
+</html>

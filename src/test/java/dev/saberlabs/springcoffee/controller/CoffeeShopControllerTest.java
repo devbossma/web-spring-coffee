@@ -75,4 +75,12 @@ class CoffeeShopControllerTest extends AbstractIntegrationTest {
                 .andExpect(view().name("orders"))
                 .andExpect(model().attributeExists("orders"));
     }
+
+    @Test
+    void reorderingAnUnknownOrderShowsTheErrorPageInsteadOfCrashing() throws Exception {
+        mockMvc.perform(post("/orders/{id}/reorder", 999_999L))
+                .andExpect(status().isNotFound())
+                .andExpect(view().name("error"))
+                .andExpect(model().attributeExists("message"));
+    }
 }

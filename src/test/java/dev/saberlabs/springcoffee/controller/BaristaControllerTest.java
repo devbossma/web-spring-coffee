@@ -123,6 +123,18 @@ class BaristaControllerTest extends AbstractIntegrationTest {
         assertStatus(order.getId(), OrderStatus.CANCELLED);
     }
 
+    // ---- error handling ----
+
+    @Test
+    void anUnknownOrderIdShowsTheErrorPageInsteadOfCrashing() throws Exception {
+        MockHttpSession session = loggedInSession();
+
+        mockMvc.perform(post("/barista/orders/{id}/pay", 999_999L).session(session))
+                .andExpect(status().isNotFound())
+                .andExpect(view().name("error"))
+                .andExpect(model().attributeExists("message"));
+    }
+
     // ---- helpers ----
 
     private MockHttpSession loggedInSession() throws Exception {
