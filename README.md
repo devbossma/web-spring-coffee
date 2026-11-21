@@ -27,6 +27,53 @@ earlier submissions was fine; reusing the code itself was not the point of the e
 
 ## Description
 
+### Second Submission Note
+
+This submission addresses the five rubric items the first peer review marked `NO`, one at a time:
+
+- **"Are `@ModelAttribute` annotations used to bind form data to the model?"** They are now:
+  `CoffeeShopController.placeOrder` takes `@ModelAttribute OrderForm orderForm`, a small record
+  Spring MVC's constructor-based data binding fills directly from the posted `coffeeType` and
+  `extras` fields, in place of the two separate `@RequestParam` arguments this controller used
+  to read.
+- **"Does Spring MVC support input validation using `@Valid` or `@Validated`?"** `OrderForm`'s
+  `coffeeType` now carries `@NotNull`, and `placeOrder` takes `@Valid @ModelAttribute OrderForm`
+  plus a `BindingResult`. The HTML form already marked the radio group `required`, but that was
+  only ever a client-side nudge; a request built without it used to reach `PlaceOrderCommand`
+  with a null coffee type and NPE several calls deeper. It now re-renders the menu with an error
+  message instead.
+- **"Does Spring MVC use `@ExceptionHandler` or `@ControllerAdvice` to handle exceptions
+  globally?"** `GlobalExceptionHandler` now catches the order-lifecycle commands' own exceptions
+  across every controller at once: `IllegalArgumentException` (an order id that does not exist)
+  becomes a 404, `IllegalStateException` (a request that cannot be carried out right now, like a
+  declined payment) becomes a 409, both rendering a small shared `error.html` instead of letting
+  a bad order id fall through to a raw Whitelabel 500.
+- **"Does the application use `@Transactional` for managing Hibernate transactions within
+  service methods?"** Every method on `CoffeeShopFacade`, the single entry point for every order
+  mutation, is now `@Transactional`. Without it, a command's repository save committed on its
+  own the instant it happened; if the observer notification that followed then failed, the
+  status change was already permanent with no notification ever having gone out.
+  `CoffeeShopFacadeTransactionalityTest` proves this behaviorally, not just structurally: it
+  mocks `OrderNotifier` to throw, then asserts the order's status actually rolled back in the
+  database.
+- **"Are `@MessageMapping` annotations used to handle incoming WebSocket messages?"** This was
+  the one genuine architecture change. The chat no longer runs on a raw
+  `TextWebSocketHandler` keeping its own session map; `WebSocketConfig` enables a STOMP broker
+  over the same `/ws/chat` endpoint, and `ChatStompController`'s
+  `@MessageMapping("/chat/{orderId}")` method handles inbound messages, broadcasting through
+  `SimpMessagingTemplate` to `/topic/chat/{orderId}` instead. `chat.js` was rewritten to speak a
+  minimal hand-written STOMP 1.2 client directly over the same `WebSocket` object, rather than
+  pull in a CDN-hosted STOMP library when every other script in this app has zero dependencies.
+  Beyond the automated `ChatStompControllerTest` (which uses Spring's own compliant
+  `WebSocketStompClient`), the hand-written `chat.js` dialect itself was verified separately
+  against a live run of the app, confirming both cross-client chat delivery and the real
+  order-fulfillment system-message broadcast actually work over the exact frames a browser
+  sends.
+
+The two rubric items already marked `YES` that the review's prose also touched on,
+`@RequestMapping`/`@GetMapping` usage and the `WebSocketConfigurer`/`@Configuration` wiring,
+needed no changes; they are unaffected by the items above.
+
 ### The pieces
 
 | Package | What it does |
