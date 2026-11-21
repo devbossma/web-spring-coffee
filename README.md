@@ -16,9 +16,9 @@ delivered in this one repository.
   Hibernate itself rather than hand-written migrations.
 - **A WebSocket for the chat, not a poll.** The earlier Spring Boot version of this app's chat
   worked by polling. This one does not: a customer and the shared barista console both open a
-  raw WebSocket at `/ws/chat`, and a message, or an order going from placed to paid to ready,
-  shows up on the other side the instant it happens, with no refresh and no interval timer
-  involved anywhere.
+  STOMP connection over WebSocket at `/ws/chat`, and a message, or an order going from placed to
+  paid to ready, shows up on the other side the instant it happens, with no refresh and no
+  interval timer involved anywhere.
 
 All ten GoF design patterns from the earlier submissions are here again too, in the sixteen
 packages the assignment asks for, but this is a fresh, standalone implementation rather than a
@@ -34,7 +34,7 @@ earlier submissions was fine; reusing the code itself was not the point of the e
 | `controller` | `CoffeeShopController` (menu, place order, order history), `ChatPageController` (the chat page for one order), `BaristaController` (login, console, pay/fulfill/cancel) |
 | `service`, `repository`, `model` | the application layer and the three JPA entities (`CoffeeOrder`, `Coffee`, `ChatMessage`) behind them |
 | `config` | `WebMvcConfig` wiring two `HandlerInterceptor`s: one that hands every browser session a customer id on first visit, one that gates the barista console behind the login form; `PasswordConfig` exposes the bcrypt `PasswordEncoder` bean |
-| `websocket` | `WebSocketConfig` registering `ChatWebSocketHandler` at `/ws/chat`, routed per order id from the connection's own query string, with no message broker in between |
+| `websocket` | `WebSocketConfig` enabling a simple STOMP broker over `/ws/chat`; `ChatStompController`'s `@MessageMapping("/chat/{orderId}")` handles inbound chat messages and broadcasts to `/topic/chat/{orderId}`, the destination every session for that order subscribes to |
 | `factory`, `decorator`, `strategy`, `singleton`, `observer`, `command`, `adapter`, `facade`, `prototype`, `template` | the ten design patterns, each one a real, working piece of the running app rather than a textbook example sitting off to the side |
 | `tools` | `HashGenerator`, a standalone CLI for generating the bcrypt hash that `BARISTA_PASSWORD_HASH` needs; not part of the running app, so it is excluded from the coverage gate the same way the application's own entry point is |
 
@@ -46,8 +46,8 @@ earlier submissions was fine; reusing the code itself was not the point of the e
    way an order is ever placed: it runs the Strategy pattern to price the order (regular or
    happy-hour, by the clock), stamps it with a daily order code minted by the Singleton, and
    saves it through the Command pattern's `PlaceOrderCommand`.
-3. Placing the order redirects straight to `/chat/{orderId}`, which opens a WebSocket connection
-   to `/ws/chat?orderId={orderId}` and joins that order's chat room.
+3. Placing the order redirects straight to `/chat/{orderId}`, which opens a STOMP connection to
+   `/ws/chat` and subscribes to `/topic/chat/{orderId}`, that order's chat room.
 4. The barista console at `/barista/console` lists every active order. Paying, fulfilling, or
    cancelling an order posts to `/barista/orders/{id}/...`, each one running through the same
    Facade and a Command of its own.
@@ -79,10 +79,14 @@ earlier submissions was fine; reusing the code itself was not the point of the e
   generate and set it. `BaristaAuthService` also runs a dummy bcrypt comparison for unknown
   usernames, so an unknown username and a wrong password both take the same amount of time,
   closing the timing gap that would otherwise let someone enumerate valid usernames.
-- **The WebSocket room is keyed by order id, not by any user id.** This app assumes one shared
-  barista console watching every order at once, so a message sent into an order's room reaches
-  every open session for that order, customer and barista alike, with no separate routing per
-  participant.
+- **The chat "room" is a STOMP destination keyed by order id, not by any user id.** This app
+  assumes one shared barista console watching every order at once, so a message published to
+  `/topic/chat/{orderId}` reaches every session subscribed to it, customer and barista alike,
+  with no separate routing per participant.
+- **`chat.js` speaks STOMP without a library.** Rather than pull in a CDN-hosted STOMP client
+  when every other script in this app has zero dependencies, `chat.js` hand-writes the handful
+  of STOMP 1.2 frames (`CONNECT`, `SUBSCRIBE`, `SEND`, `MESSAGE`) it actually needs, directly
+  over the same `WebSocket` object a raw handler would have used.
 - **A handful of known limitations exist on purpose:**
   - There is no idempotency key on placing an order, so retrying the exact same form submission
     can place a second order.
@@ -210,7 +214,7 @@ This needs Docker running, because the test suite starts its own disposable MySQ
 through Testcontainers rather than using any in-memory stand-in. The build does two things at
 once: it runs the entire test suite, and it enforces an 80 percent minimum line coverage floor
 for every package, so a shrinking test suite fails the build loudly instead of slipping through
-quietly. The suite currently stands at 90 tests, all of them passing. `BARISTA_PASSWORD_HASH`
+quietly. The suite currently stands at 97 tests, all of them passing. `BARISTA_PASSWORD_HASH`
 does not need to be set to run this: `AbstractIntegrationTest` supplies its own hash directly to
 the Spring context, so the test suite never depends on anything in your shell environment.
 
